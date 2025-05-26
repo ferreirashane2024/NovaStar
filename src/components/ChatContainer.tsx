@@ -1,4 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
+import { TypingIndicator } from './TypingIndicator';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
   id: string;
@@ -11,12 +15,11 @@ export const ChatContainer: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi, I'm Nova. How can I assist you today?",
+      text: "Hi, I'm Nova — your AI assistant. How can I help today?",
       isUser: false,
       timestamp: new Date()
     }
   ]);
-  const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -26,55 +29,68 @@ export const ChatContainer: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-
-    const newMessage: Message = {
+  const handleSendMessage = async (text: string) => {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      text: input,
+      text,
       isUser: true,
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInput('');
+    setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+
+      const data = await response.json();
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `You said: "${newMessage.text}". I'm still learning, but I'm here for you.`,
+        text: data.reply || "Hmm, something went wrong...",
         isUser: false,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-    }, 1500);
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        text: "Sorry, I couldn’t connect to Nova’s brain. Please try again.",
+        isUser: false,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+
+    setIsTyping(false);
   };
 
   return (
-    <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
-      <div style={{ height: '300px', overflowY: 'auto', border: '1px solid #ccc', padding: '1rem', marginBottom: '1rem' }}>
-        {messages.map(msg => (
-          <div key={msg.id} style={{ textAlign: msg.isUser ? 'right' : 'left', marginBottom: '0.5rem' }}>
-            <strong>{msg.isUser ? 'You' : 'Nova'}:</strong> {msg.text}
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full scrollbar-thin">
+          <div className="flex flex-col py-4">
+            {messages.map((message) => (
+              <ChatMessage
+                key={message.id}
+                message={message.text}
+                isUser={message.isUser}
+                timestamp={message.timestamp}
+              />
+            ))}
+            {isTyping && <TypingIndicator />}
+            <div ref={messagesEndRef} />
           </div>
-        ))}
-        <div ref={messagesEndRef} />
+        </ScrollArea>
       </div>
-      <div style={{ display: 'flex' }}>
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Type your message..."
-          style={{ flex: 1, padding: '0.5rem' }}
-        />
-        <button onClick={handleSend} style={{ marginLeft: '0.5rem' }}>Send</button>
-      </div>
+      <ChatInput onSend={handleSendMessage} disabled={isTyping} />
     </div>
   );
 };
