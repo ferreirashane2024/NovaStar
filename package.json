@@ -1,0 +1,12 @@
+{
+  "name": "novastar",
+  "version": "1.0.0",
+  "description": "Nova Star is your personal AI guide, rooted in trust, empathy, and capability.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
